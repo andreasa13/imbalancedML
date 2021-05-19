@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold, cross_validate
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, balanced_accuracy_score
+from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, balanced_accuracy_score, plot_roc_curve
 from imblearn.over_sampling import RandomOverSampler
 from imblearn.under_sampling import RandomUnderSampler
 import matplotlib.pyplot as plt
@@ -44,6 +44,13 @@ import warnings
 from sklearn.exceptions import DataConversionWarning
 warnings.filterwarnings(action='ignore', category=DataConversionWarning)
 
+from sklearn.metrics import precision_recall_curve
+from sklearn.metrics import plot_precision_recall_curve
+# import matplotlib.pyplot as plt
+
+from sklearn.metrics import average_precision_score
+
+
 
 
 def get_categorical_features(df):
@@ -66,10 +73,23 @@ def model_evaluation(X_train, X_test, y_train, y_test):
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
 
+    print(classification_report_imbalanced(y_test, y_pred))
+
     accuracy = accuracy_score(y_test, y_pred)
     balanced_acc = balanced_accuracy_score(y_test, y_pred)
     print('Accuracy: %.2f' % accuracy)
     print('Balanced accuracy: %.2f' % balanced_acc)
+
+    fpr, tpr, thresholds = roc_curve(y_test, y_pred, pos_label=1)
+    print("fpr: ", fpr)
+    print("tpr: ", tpr)
+    print(thresholds)
+
+    plot_precision_recall_curve(clf, X_test, y_test, pos_label=0)
+    plot_roc_curve(clf, X_test, y_test)
+    plt.show()
+
+
 
     #     print('Recall: %.2f' % recall_score(y_test, y_pred))
     #     print('Precision: %.2f' % precision_score(y_test, y_pred))
@@ -277,10 +297,12 @@ def adaptiveSynthetic(X_train, X_test, y_train, y_test):
 def kMeansRos(X_train, X_test, y_train, y_test):
     kmeans = KMeans(n_clusters=2).fit(X_train)
     y_train = kmeans.labels_
-    print(type(y_train))
+
     print(kmeans.cluster_centers_)
+
     countPos = np.count_nonzero(y_train == 0)
     countNeg = np.count_nonzero(y_train == 1)
+
 
     if countPos < countNeg:
         indices_one = y_train == 1
@@ -353,8 +375,6 @@ if __name__ == '__main__':
     X_train = scaler.fit_transform(X_train)
     X_test = scaler.transform(X_test)
 
-
-
     # print(y_train['stroke'].value_counts())
     # print(y_test['stroke'].value_counts())
     print('NO PREPROCESSING: ')
@@ -371,11 +391,6 @@ if __name__ == '__main__':
     # y_pred, y_test = evaluate_model(X, y, True)
 
     # model_evaluation(y_pred, y_test)
-    # fpr, tpr, thresholds = roc_curve(y_test, y_pred, pos_label=1)
-    #
-    # print(fpr)
-    # print(tpr)
-    # print(thresholds)
 
 
     # X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.25)
@@ -389,23 +404,9 @@ if __name__ == '__main__':
     # scatter_plot(X_ros, y_ros)
     # print(y_ros['stroke'].value_counts())
     # print(Counter(y_ros))
-
-
-    # clf = RandomForestClassifier()
-    # clf.fit(X_train, y_train.values.ravel())
-    # y_pred = clf.predict(X_test)
-    # model_evaluation(y_pred, y_test)
-    #
+#
     # from sklearn.metrics import plot_confusion_matrix
-    # plot_confusion_matrix(clf, X_test, y_test, cmap=plt.cm.Blues, normalize='true')
-    # plt.show()
-    #
-    # clf = RandomForestClassifier()
-    # clf.fit(X_ros, y_ros)
-    # y_pred = clf.predict(X_test)
-    #
-    # model_evaluation(y_pred, y_test)
-    #
+
     # plot_confusion_matrix(clf, X_test, y_test, cmap=plt.cm.Blues, normalize='true')
     # plt.show()
 
