@@ -36,20 +36,24 @@ from sklearn.decomposition import PCA as sklearnPCA
 from sklearn.decomposition import PCA
 
 from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+
 from imblearn.over_sampling import ADASYN
 
 from imblearn.under_sampling import TomekLinks
+from sklearn.metrics import plot_confusion_matrix
 
 import warnings
 from sklearn.exceptions import DataConversionWarning
-warnings.filterwarnings(action='ignore', category=DataConversionWarning)
 
 from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import plot_precision_recall_curve
 # import matplotlib.pyplot as plt
+# from sklearn.pipeline import Pipeline
+from imblearn.pipeline import Pipeline
+from sklearn.svm import SVC
 
 from sklearn.metrics import average_precision_score
-
 
 
 
@@ -69,7 +73,8 @@ def one_hot_encoding(df, col_name):
 
 def model_evaluation(X_train, X_test, y_train, y_test):
 
-    clf = RandomForestClassifier(max_depth=3)
+    clf = RandomForestClassifier()
+    # clf = SVC()
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)
 
@@ -85,7 +90,7 @@ def model_evaluation(X_train, X_test, y_train, y_test):
     print("tpr: ", tpr)
     print(thresholds)
 
-    plot_precision_recall_curve(clf, X_test, y_test, pos_label=0)
+    plot_precision_recall_curve(clf, X_test, y_test, pos_label=1)
     plot_roc_curve(clf, X_test, y_test)
     plt.show()
 
@@ -98,12 +103,12 @@ def model_evaluation(X_train, X_test, y_train, y_test):
 def scatter2D(x, y):
     x['stroke'] = y
     df = x
-    fig, ax = plt.subplots(figsize=(15, 8))
+    fig, ax3 = plt.subplots(figsize=(15, 8))
 
     colors = {0: 'blue', 1: 'red'}
     sizevalues = {0: 5, 1: 20}
     alphavalues = {0: 0.4, 1: 0.8}
-    ax.scatter(df['age'], df['avg_glucose_level'],
+    ax3.scatter(df['age'], df['avg_glucose_level'],
                c=df['stroke'].apply(lambda x: colors[x]),
                s=df['stroke'].apply(lambda x: sizevalues[x]),
                alpha= .5)
@@ -129,8 +134,8 @@ def scatter_plot(x, y):
     pcaDF.columns = ['pc1', 'pc2', 'pc3', 'stroke']
 
     # 3D plot
-    fig = plt.figure()
-    ax = Axes3D(fig)
+    fig3 = plt.figure(1)
+    ax3 = Axes3D(fig3)
 
     # positive class
     positive = pcaDF[pcaDF['stroke'] == 1]
@@ -145,8 +150,8 @@ def scatter_plot(x, y):
     pnz = negative['pc3']
 
     # plotting
-    ax.scatter(pnx, pny, pnz, label='Class 2', c='blue')
-    ax.scatter(ppx, ppy, ppz, label='Class 1', c='red')
+    ax3.scatter(pnx, pny, pnz, label='Class 2', c='blue')
+    ax3.scatter(ppx, ppy, ppz, label='Class 1', c='red')
     
     plt.show()
 
@@ -301,7 +306,9 @@ def kMeansRos(X_train, X_test, y_train, y_test):
     print(kmeans.cluster_centers_)
 
     countPos = np.count_nonzero(y_train == 0)
+    print(countPos)
     countNeg = np.count_nonzero(y_train == 1)
+    print(countNeg)
 
 
     if countPos < countNeg:
@@ -318,7 +325,27 @@ def kMeansRos(X_train, X_test, y_train, y_test):
 
     model_evaluation(X_train, X_test, y_train, y_test)
 
+
+def plotlyBarChart(df):
+
+    import plotly.graph_objects as go
+
+
+    x = df.index.values.tolist()
+    y = df.tolist()
+
+    fig = go.Figure(data=[go.Bar(
+        x=x, y=y,
+        text=y,
+        textposition='auto',
+    )])
+
+    fig.show()
+
+
 if __name__ == '__main__':
+
+    warnings.filterwarnings(action='ignore', category=DataConversionWarning)
 
     df = pd.read_csv("healthcare-dataset-stroke-data.csv")
     print(df.describe())
@@ -353,7 +380,16 @@ if __name__ == '__main__':
 
     print(df.columns)
 
-    print(df['stroke'].value_counts())
+
+    count_cases = df['stroke'].value_counts()
+    print(type(count_cases))
+    print(count_cases)
+    ax = count_cases.plot.bar(rot=0, title='Number of cases per class')
+    ax.set_xlabel('stroke prediction')
+    ax.set_ylabel('# of cases')
+    # for p in ax.patches:
+    #     ax.annotate(str(p.get_height()), (p.get_x() * 1.005, p.get_height() * 1.005))
+    plt.show()
 
     corrDF = df.drop(["stroke"], axis=1).apply(lambda x: x.corr(df.stroke.astype('category').cat.codes))
     print(type(corrDF))
@@ -364,48 +400,189 @@ if __name__ == '__main__':
     X = df.drop(['stroke'], axis=1)
     y = df[['stroke']]
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.25)
+    # X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.25)
 
-    from sklearn.preprocessing import MinMaxScaler
     # scaler = MinMaxScaler()
     # X_train = scaler.fit_transform(X_train)
     # X_test = scaler.transform(X_test)
 
     scaler = StandardScaler()
-    X_train = scaler.fit_transform(X_train)
-    X_test = scaler.transform(X_test)
+    # X_train = scaler.fit_transform(X_train)
+    # X_test = scaler.transform(X_test)
+
+
+    # pipeline = Pipeline(steps=[('scaler', scaler), ('imb', smote), ('clf', clf)])
+    folds = StratifiedKFold(n_splits=10, shuffle=True)
+    # n_scores = cross_validate(pipeline, X, y, scoring=['accuracy', 'balanced_accuracy', 'roc_auc'], cv=folds, n_jobs=-1)
+    # print('Accuracy: %.3f (%.3f)' % (np.mean(n_scores['test_accuracy']), np.std(n_scores['test_accuracy'])))
+    # print('Balanced: %.3f (%.3f)' % (np.mean(n_scores['test_balanced_accuracy']), np.std(n_scores['test_balanced_accuracy'])))
+    # print('AUC: %.3f (%.3f)' % (np.mean(n_scores['test_roc_auc']), np.std(n_scores['test_roc_auc'])))
+
+    tprs = []
+    aucs = []
+    acc = []
+    bacc = []
+
+    aucs2 = []
+    precs = []
+    recs = []
+    ap = []
+
+    mean_fpr = np.linspace(0, 1, 100)
+    # mean_pr = np.linspace(0, 1, 100)
+    mean_rec = np.linspace(0, 1, 100)
+
+    from sklearn.metrics import auc
+    from sklearn.metrics import plot_roc_curve
+
+    figROC = plt.figure(2)
+    axROC = figROC.add_subplot(111)
+
+    figPR = plt.figure(3)
+    axPR = figPR.add_subplot(111)
+
+    for i, (train, test) in enumerate(folds.split(X, y)):
+
+        X_train, y_train = X.iloc[train], y.iloc[train]
+        X_test, y_test = X.iloc[test], y.iloc[test]
+
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
+
+        # scaler = MinMaxScaler()
+        # X_train = scaler.fit_transform(X_train)
+        # X_test = scaler.transform(X_test)
+
+        if i == 0:
+            scatter_plot(X_train, y_train)
+
+        sm = BorderlineSMOTE()
+        X_train, y_train = sm.fit_resample(X_train, y_train)
+
+        if i == 0:
+            scatter_plot(X_train, y_train)
+
+        # clf = SVC()
+        clf = RandomForestClassifier(max_depth=3)
+
+        clf.fit(X_train, y_train)
+        # scatter_plot(X.iloc[train], y.iloc[train])
+        viz = plot_roc_curve(clf, X_test, y_test,
+                             name='ROC fold {}'.format(i),
+                             alpha=0.3, lw=1, ax=axROC)
+
+        prc = plot_precision_recall_curve(clf, X_test, y_test,
+                                           name='PR fold {}'.format(i),
+                                           alpha=0.3, lw=1, ax=axPR, pos_label=1)
+
+        # print(prc.recall)
+        # aucs2.append(auc(pr, rec))
+
+        precInterp = np.interp(mean_rec, prc.recall, prc.precision)
+        precInterp[0] = 1.0
+        # precs.append(prc.precision)
+        precs.append(precInterp)
+        ap.append(prc.average_precision)
+
+        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
+        interp_tpr[0] = 0.0
+        tprs.append(interp_tpr)
+        aucs.append(viz.roc_auc)
+        # aucs.append(auc(viz.fpr, viz.tpr))
+
+        y_pred = clf.predict(X_test)
+        acc.append(accuracy_score(y_test, y_pred))
+        bacc.append(balanced_accuracy_score(y_test, y_pred))
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111)
+
+    axROC.plot([0, 1], [0, 1], linestyle='--', lw=2, color='r',
+            label='Chance', alpha=.8)
+
+    mean_tpr = np.mean(tprs, axis=0)
+    mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    std_auc = np.std(aucs)
+
+    mean_prec = np.mean(precs, axis=0)
+    print(mean_prec)
+    mean_prec[-1] = 0.0
+    mean_ap = np.mean(ap)
+    std_ap = np.std(ap)
+
+    axROC.plot(mean_fpr, mean_tpr, color='b',
+            label=r'Mean ROC (AUC = %0.2f $\pm$ %0.2f)' % (mean_auc, std_auc),
+            lw=2, alpha=.8)
+
+    axPR.plot(mean_rec, mean_prec, color='b',
+               label = r'Mean PR (AP = %0.2f $\pm$ %0.2f)' % (mean_ap, std_ap),
+               lw=2, alpha=.8)
+
+    std_tpr = np.std(tprs, axis=0)
+    tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+    tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+
+    std_prec = np.std(precs, axis=0)
+    prec_upper = np.minimum(mean_prec + std_prec, 1)
+    prec_lower = np.maximum(mean_prec - std_prec, 0)
+
+    axROC.fill_between(mean_fpr, tprs_lower, tprs_upper, color='grey', alpha=.2,
+                    label=r'$\pm$ 1 std. dev.')
+
+    axPR.fill_between(mean_rec, prec_lower, prec_upper, color='grey', alpha=.2,
+                       label=r'$\pm$ 1 std. dev.')
+
+    axROC.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
+           title="Receiver operating characteristic example")
+
+    axPR.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
+           title="Receiver operating characteristic example")
+
+    axROC.legend(loc="lower right")
+    figROC.savefig('ROC_CV.png')
+    figROC.show()
+
+    axPR.legend(loc="upper right")
+    figPR.savefig('PR_CV.png')
+    figPR.show()
+
+    print('Mean Accuracy: %.3f (%.3f)' % (np.mean(acc), np.std(acc)))
+    print('Mean Balanced Accuracy: %.3f (%.3f)' % (np.mean(bacc), np.std(bacc)))
+    print('AUC %.3f (%.3f)' % (np.mean(aucs), np.std(aucs)))
 
     # print(y_train['stroke'].value_counts())
     # print(y_test['stroke'].value_counts())
-    print('NO PREPROCESSING: ')
-    scatter_plot(X_train, y_train)
-    # scatter2D(X, y)
-    print(y_train['stroke'].value_counts())
-    model_evaluation(X_train, X_test, y_train, y_test)
+
+    # print('NO PREPROCESSING: ')
+    # scatter_plot(X_train, y_train)
+    # # scatter2D(X, y)
+    # print(y_train['stroke'].value_counts())
+    # model_evaluation(X_train, X_test, y_train, y_test)
 
 
-    brSMOTE(X_train, X_test, y_train, y_test)
-    # X_train['stroke'] = kmeans.labels_
 
     # k-fold cross-validation
     # y_pred, y_test = evaluate_model(X, y, True)
 
-    # model_evaluation(y_pred, y_test)
-
-
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.25)
-    # print(y_test['stroke'].unique())
-
     # ros = RandomOverSampler()
-    # X_ros, y_ros = ros.fit_resample(X_train, kmeans.labels_)
-
-    # print(X_ros)
-
+    # X_ros, y_ros = ros.fit_resample(X_train, y_train)
     # scatter_plot(X_ros, y_ros)
     # print(y_ros['stroke'].value_counts())
-    # print(Counter(y_ros))
-#
-    # from sklearn.metrics import plot_confusion_matrix
+    # model_evaluation(X_ros, X_test, y_ros, y_test)
+    #
+    # rus = RandomUnderSampler()
+    # X_rus, y_rus = rus.fit_resample(X_train, y_train)
+    # scatter_plot(X_rus, y_rus)
+    # print(y_ros['stroke'].value_counts())
+    # model_evaluation(X_rus, X_test, y_rus, y_test)
+
+    # print('Borderline SMOTE & Tomek Links')
+    # brSMOTE(X_train, X_test, y_train, y_test)
+
+    # print('KMeans & Random Oversampling')
+    # kMeansRos(X_train, X_test, y_train, y_test)
 
     # plot_confusion_matrix(clf, X_test, y_test, cmap=plt.cm.Blues, normalize='true')
     # plt.show()
