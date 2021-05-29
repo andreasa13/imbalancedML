@@ -48,13 +48,19 @@ from sklearn.exceptions import DataConversionWarning
 
 from sklearn.metrics import precision_recall_curve
 from sklearn.metrics import plot_precision_recall_curve
+
+from sklearn.metrics import auc
+from sklearn.metrics import plot_roc_curve
+
+from sklearn.linear_model import LogisticRegression
+
 # import matplotlib.pyplot as plt
 # from sklearn.pipeline import Pipeline
+
 from imblearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
 from sklearn.metrics import average_precision_score
-
 
 
 def get_categorical_features(df):
@@ -100,6 +106,7 @@ def model_evaluation(X_train, X_test, y_train, y_test):
     #     print('Precision: %.2f' % precision_score(y_test, y_pred))
     #     print('F1: %.2f' % f1_score(y_test, y_pred))
 
+
 def scatter2D(x, y):
     x['stroke'] = y
     df = x
@@ -115,12 +122,52 @@ def scatter2D(x, y):
 
     plt.show()
 
+def scatter3D(x, y, cols):
+    print(cols)
+    if 'stroke' in cols:
+        cols.remove('stroke')
+    df2 = pd.DataFrame(x)
+    df2.columns = cols
+    df2['stroke'] = y
+
+    fig3 = plt.figure(1)
+    ax3 = Axes3D(fig3)
+
+    # positive class
+    positive = pd.DataFrame(df2[df2['stroke'] == 1], columns=df2.columns)
+    print(positive.columns)
+    positive.columns = df2.columns
+    ppx = positive['age']
+    ppy = positive['hypertension']
+    ppz = positive['avg_glucose_level']
+
+    # negative class
+    negative = df2[df2['stroke'] == 0]
+    negative.columns = df2.columns
+    pnx = negative['age']
+    pny = negative['hypertension']
+    pnz = negative['avg_glucose_level']
+
+    # plotting
+    ax3.scatter(pnx, pny, pnz, label='Class 2', c='blue')
+    ax3.scatter(ppx, ppy, ppz, label='Class 1', c='red')
+
+    ax3.set_xlabel('age')
+    ax3.set_ylabel('hypertension')
+    ax3.set_zlabel('avg_glucose_level')
+
+    ax3.set_title('SMOTE')
+    plt.title('SMOTE')
+
+    plt.show()
+
 
 def scatter_plot(x, y):
 
     # normalization
-    # scaler = StandardScaler()
-    # x = scaler.fit_transform(x)
+    scaler = StandardScaler()
+    x = scaler.fit_transform(x)
+
 
     # 2-dimensional PCA
     pca = PCA(n_components=3)
@@ -149,120 +196,15 @@ def scatter_plot(x, y):
     pny = negative['pc2']
     pnz = negative['pc3']
 
+    # ax3.set_xlim3d(-4, 4)
+    # ax3.set_ylim3d(-4, 4)
+    # ax3.set_zlim3d(-4, 4)
+
     # plotting
     ax3.scatter(pnx, pny, pnz, label='Class 2', c='blue')
     ax3.scatter(ppx, ppy, ppz, label='Class 1', c='red')
     
     plt.show()
-
-
-def compute_accuracy(TP, FP, TN, FN):
-    print()
-
-
-# aggregate predictions of each fold
-def aggregate_labels(labels_list):
-    y = []
-    for l in labels_list:
-        y.extend(l)
-    return y
-    
-    
-def perf_measure(y_actual, y_pred):
-    
-    TP = 0
-    FP = 0
-    TN = 0
-    FN = 0
-
-    for i in range(len(y_pred)): 
-        if y_actual[i] == y_pred[i] == 0:
-            TP += 1
-        if y_pred[i] == 0 and y_actual[i] != y_pred[i]:
-            FP += 1
-        if y_actual[i] == y_pred[i] == 1:
-            TN += 1
-        if y_pred[i] == 1 and y_actual[i] != y_pred[i]:
-            FN += 1
-
-    return TP, FP, TN, FN
-
-
-def evaluate_model(X, y, oversampling):
-    skf = StratifiedKFold(10, shuffle=True, random_state=42)
-
-#     predicted_targets = np.array([])
-#     actual_targets = np.array([])
-
-#     tp_list = []
-#     fp_list = []
-#     tn_list = []
-#     fn_list = []
-
-    y_test_agg_list = []
-    y_pred_agg_list = []
-    for train_index, test_index in skf.split(X, y):
-#             print("TRAIN:", train_index, "TEST:", test_index)
-            X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-            y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-        
-            pos_df = y_test[y_test["stroke"] == 1]
-            neg_df = y_test[y_test["stroke"] == 0]
-
-            print('positive cases: ', len(pos_df))
-            print('negative cases: ', len(neg_df))
-        
-        
-            if oversampling:            
-                kmeans = KMeans(n_clusters=2, random_state=0).fit(X_train)
-                ros = RandomOverSampler()
-                X_train, y_train = ros.fit_resample(X_train, kmeans.labels_)
-
-
-            # Fit the classifier
-            classifier = svm.SVC().fit(X_train, y_train)
-#             classifier = RandomForestClassifier().fit(X_train, y_train)
-
-            # Predict the labels of the test set samples
-            y_pred = classifier.predict(X_test)
-            print(y_pred)
-            
-            print(type(y_test))
-            print(type(y_pred))
-            
-            for yt in y_test.values.ravel():
-                y_test_agg_list.append(yt)
-            
-            for yp in y_pred.tolist():
-                y_pred_agg_list.append(yp)
-            
-            
-#             y_test_agg_list.append(y_test.values.ravel())
-#             y_pred_agg_list.append(y_pred.tolist())
-            
-#             tp, fp, tn, fn = perf_measure(y_test.values.ravel(), y_pred.tolist())
-            
-#             tp_list.append(tp)
-#             fp_list.append(fp)
-#             tn_list.append(tn)
-#             fn_list.append(fn)
-
-#             predicted_targets = np.append(predicted_targets, predicted_labels)
-#             actual_targets = np.append(actual_targets, y_test)
-    
-#     tp_avg = sum(tp_list) / len(tp_list)
-#     fp_avg = sum(fp_list) / len(fp_list)
-#     tn_avg = sum(tn_list) / len(tn_list)
-#     fn_avg = sum(fn_list) / len(fn_list)
-    
-#     y_test = aggregate_labels(y_test_agg_list)
-#     print(y_test)
-#     y_pred = aggregate_labels(y_pred_agg_list)
-#     print(y_pred)
-    
-    return y_pred_agg_list, y_test_agg_list
-    
-#     return tp_avg, fp_avg, tn_avg, fn_avg
 
 
 def kNNUndersampling(X_train, X_test, y_train, y_test):
@@ -274,22 +216,25 @@ def kNNUndersampling(X_train, X_test, y_train, y_test):
     model_evaluation(X_train, X_test, y_train, y_test)
 
 
-def brSMOTE(X_train, X_test, y_train, y_test):
+def bSMOTE(X_train, y_train, i):
     # borderline SMOTE
     from imblearn.over_sampling import SMOTE, KMeansSMOTE
     sm = BorderlineSMOTE()
     # sm = SMOTE()
     X_train, y_train = sm.fit_resample(X_train, y_train)
-    print(y_train['stroke'].value_counts())
-    scatter_plot(X_train, y_train)
-    model_evaluation(X_train, X_test, y_train, y_test)
+    # print(y_train['stroke'].value_counts())
+    if i == 0:
+        # scatter_plot(X_train, y_train)
+        scatter3D(X_train, y_train, cols)
 
     # remove TomekLinks
     tl = TomekLinks(sampling_strategy='auto')
     X_train, y_train = tl.fit_resample(X_train, y_train)
-    print(y_train['stroke'].value_counts())
-    scatter_plot(X_train, y_train)
-    model_evaluation(X_train, X_test, y_train, y_test)
+    # print(y_train['stroke'].value_counts())
+    if i == 0:
+        # scatter_plot(X_train, y_train)
+        scatter3D(X_train, y_train, cols)
+    return X_train, y_train
 
 
 def adaptiveSynthetic(X_train, X_test, y_train, y_test):
@@ -299,31 +244,30 @@ def adaptiveSynthetic(X_train, X_test, y_train, y_test):
     model_evaluation(X_train, X_test, y_train, y_test)
 
 
-def kMeansRos(X_train, X_test, y_train, y_test):
+def kMeansRos(X_train):
+    from sklearn.cluster import SpectralClustering
+
     kmeans = KMeans(n_clusters=2).fit(X_train)
-    y_train = kmeans.labels_
+    # kmeans = SpectralClustering(n_clusters=2).fit(X_train)
+    y_labels = kmeans.labels_
 
-    print(kmeans.cluster_centers_)
-
-    countPos = np.count_nonzero(y_train == 0)
+    countPos = np.count_nonzero(y_labels == 0)
     print(countPos)
-    countNeg = np.count_nonzero(y_train == 1)
+    countNeg = np.count_nonzero(y_labels == 1)
     print(countNeg)
 
-
     if countPos < countNeg:
-        indices_one = y_train == 1
-        indices_zero = y_train == 0
-        y_train[indices_one] = 0  # replacing 1s with 0s
-        y_train[indices_zero] = 1  # replacing 0s with 1s
+        indices_one = y_labels == 1
+        indices_zero = y_labels == 0
+        y_labels[indices_one] = 0  # replacing 1s with 0s
+        y_labels[indices_zero] = 1  # replacing 0s with 1s
 
-    scatter_plot(X_train, y_train)
-
+    # scatter_plot(X_train, y_labels)
 
     ros = RandomOverSampler()
-    X_train, y_train = ros.fit_resample(X_train, y_train)
+    X_train, y_train = ros.fit_resample(X_train, y_labels)
 
-    model_evaluation(X_train, X_test, y_train, y_test)
+    return X_train, y_train
 
 
 def plotlyBarChart(df):
@@ -347,29 +291,25 @@ if __name__ == '__main__':
 
     warnings.filterwarnings(action='ignore', category=DataConversionWarning)
 
+    # load dataset
     df = pd.read_csv("healthcare-dataset-stroke-data.csv")
     print(df.describe())
 
-    print("Total number of entries: ", len(df))
+    print("Total number of entries/cases: ", len(df))
 
     # positive/negative
     pos_df = df[df["stroke"] == 1]
     neg_df = df[df["stroke"] == 0]
-
-    # print length
     print('positive cases: ', len(pos_df))
     print('positive cases: ', len(neg_df))
 
-    # Drop id column & drop Missing values
+    # Drop id column & Drop Missing values
     df = df.drop(['id'], axis=1)
     print(df.isnull().sum())
     df = df.dropna()
     print("After removal of missing values: ", len(df))
 
-    # Separate features and ground truth label
-    # X = df.drop(['stroke'], axis=1)
-    # y = df[['stroke']]
-
+    # get categorical features
     categorical_features = get_categorical_features(df)
     print('categorical features: ', categorical_features)
 
@@ -377,9 +317,8 @@ if __name__ == '__main__':
     for feature in categorical_features:
         df = one_hot_encoding(df, feature)
 
-
     print(df.columns)
-
+    cols = df.columns.tolist()
 
     count_cases = df['stroke'].value_counts()
     print(type(count_cases))
@@ -400,23 +339,7 @@ if __name__ == '__main__':
     X = df.drop(['stroke'], axis=1)
     y = df[['stroke']]
 
-    # X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, test_size=0.25)
-
-    # scaler = MinMaxScaler()
-    # X_train = scaler.fit_transform(X_train)
-    # X_test = scaler.transform(X_test)
-
-    scaler = StandardScaler()
-    # X_train = scaler.fit_transform(X_train)
-    # X_test = scaler.transform(X_test)
-
-
-    # pipeline = Pipeline(steps=[('scaler', scaler), ('imb', smote), ('clf', clf)])
     folds = StratifiedKFold(n_splits=10, shuffle=True)
-    # n_scores = cross_validate(pipeline, X, y, scoring=['accuracy', 'balanced_accuracy', 'roc_auc'], cv=folds, n_jobs=-1)
-    # print('Accuracy: %.3f (%.3f)' % (np.mean(n_scores['test_accuracy']), np.std(n_scores['test_accuracy'])))
-    # print('Balanced: %.3f (%.3f)' % (np.mean(n_scores['test_balanced_accuracy']), np.std(n_scores['test_balanced_accuracy'])))
-    # print('AUC: %.3f (%.3f)' % (np.mean(n_scores['test_roc_auc']), np.std(n_scores['test_roc_auc'])))
 
     tprs = []
     aucs = []
@@ -431,9 +354,6 @@ if __name__ == '__main__':
     mean_fpr = np.linspace(0, 1, 100)
     # mean_pr = np.linspace(0, 1, 100)
     mean_rec = np.linspace(0, 1, 100)
-
-    from sklearn.metrics import auc
-    from sklearn.metrics import plot_roc_curve
 
     figROC = plt.figure(2)
     axROC = figROC.add_subplot(111)
@@ -455,15 +375,27 @@ if __name__ == '__main__':
         # X_test = scaler.transform(X_test)
 
         if i == 0:
-            scatter_plot(X_train, y_train)
+            # scatter_plot(X_train, y_train)
+            scatter3D(X_train, y_train, cols)
 
-        sm = BorderlineSMOTE()
-        X_train, y_train = sm.fit_resample(X_train, y_train)
+        # sm = BorderlineSMOTE(sampling_strategy='all')
+        # sm = SMOTE()
+        # X_train, y_train = sm.fit_resample(X_train, y_train)
+        X_train, y_train = kMeansRos(X_train)
+        # from imblearn.over_sampling import KMeansSMOTE
+        # sm = KMeansSMOTE(k_neighbors=2)
+        # X_train, y_train = bSMOTE(X_train, y_train, i)
+
+        # from imblearn.under_sampling import NearMiss, RandomUnderSampler
+        # rus = RandomUnderSampler()
+        # X_train, y_train = rus.fit_resample(X_train, y_train)
 
         if i == 0:
-            scatter_plot(X_train, y_train)
+            # scatter_plot(X_train, y_train)
+            scatter3D(X_train, y_train, cols)
 
         # clf = SVC()
+        # clf = LogisticRegression()
         clf = RandomForestClassifier(max_depth=3)
 
         clf.fit(X_train, y_train)
@@ -476,27 +408,24 @@ if __name__ == '__main__':
                                            name='PR fold {}'.format(i),
                                            alpha=0.3, lw=1, ax=axPR, pos_label=1)
 
-        # print(prc.recall)
-        # aucs2.append(auc(pr, rec))
 
-        precInterp = np.interp(mean_rec, prc.recall, prc.precision)
+        # precision interpolation
+        precInterp = np.interp(mean_rec, prc.recall[::-1], prc.precision[::-1])
         precInterp[0] = 1.0
-        # precs.append(prc.precision)
         precs.append(precInterp)
         ap.append(prc.average_precision)
 
+        # tpr interpolation
         interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)
         interp_tpr[0] = 0.0
         tprs.append(interp_tpr)
         aucs.append(viz.roc_auc)
-        # aucs.append(auc(viz.fpr, viz.tpr))
 
+        # Accuracy & Balanced Accuracy
         y_pred = clf.predict(X_test)
         acc.append(accuracy_score(y_test, y_pred))
         bacc.append(balanced_accuracy_score(y_test, y_pred))
 
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111)
 
     axROC.plot([0, 1], [0, 1], linestyle='--', lw=2, color='r',
             label='Chance', alpha=.8)
@@ -507,7 +436,6 @@ if __name__ == '__main__':
     std_auc = np.std(aucs)
 
     mean_prec = np.mean(precs, axis=0)
-    print(mean_prec)
     mean_prec[-1] = 0.0
     mean_ap = np.mean(ap)
     std_ap = np.std(ap)
@@ -535,10 +463,10 @@ if __name__ == '__main__':
                        label=r'$\pm$ 1 std. dev.')
 
     axROC.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
-           title="Receiver operating characteristic example")
+           title="ROC curve & AUC")
 
     axPR.set(xlim=[-0.05, 1.05], ylim=[-0.05, 1.05],
-           title="Receiver operating characteristic example")
+           title="Precision-Recall curves & Average Precision")
 
     axROC.legend(loc="lower right")
     figROC.savefig('ROC_CV.png')
@@ -552,19 +480,12 @@ if __name__ == '__main__':
     print('Mean Balanced Accuracy: %.3f (%.3f)' % (np.mean(bacc), np.std(bacc)))
     print('AUC %.3f (%.3f)' % (np.mean(aucs), np.std(aucs)))
 
-    # print(y_train['stroke'].value_counts())
-    # print(y_test['stroke'].value_counts())
 
     # print('NO PREPROCESSING: ')
     # scatter_plot(X_train, y_train)
     # # scatter2D(X, y)
     # print(y_train['stroke'].value_counts())
     # model_evaluation(X_train, X_test, y_train, y_test)
-
-
-
-    # k-fold cross-validation
-    # y_pred, y_test = evaluate_model(X, y, True)
 
     # ros = RandomOverSampler()
     # X_ros, y_ros = ros.fit_resample(X_train, y_train)
