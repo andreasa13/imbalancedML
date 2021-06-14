@@ -1,66 +1,42 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import math
 import pandas as pd
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, StratifiedKFold, KFold, cross_validate
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score, balanced_accuracy_score, plot_roc_curve
-from imblearn.over_sampling import RandomOverSampler
-from imblearn.under_sampling import RandomUnderSampler
-import matplotlib.pyplot as plt
 
-from imblearn.over_sampling import SMOTE
-from imblearn.pipeline import make_pipeline
 from imblearn.metrics import classification_report_imbalanced
 from imblearn.ensemble import EasyEnsembleClassifier
-
 from sklearn import svm, datasets
 from sklearn.cluster import KMeans
-
-from imblearn.over_sampling import RandomOverSampler
-from imblearn.under_sampling import RandomUnderSampler
 from collections import Counter
 
-from imblearn.over_sampling import RandomOverSampler
-from imblearn.under_sampling import RandomUnderSampler
-from collections import Counter
-from imblearn.under_sampling import CondensedNearestNeighbour
+from imblearn.over_sampling import SMOTE, BorderlineSMOTE, RandomOverSampler, ADASYN
 
-from sklearn.metrics import roc_curve
-from imblearn.over_sampling import BorderlineSMOTE
-
-from sklearn.decomposition import PCA as sklearnPCA
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import MinMaxScaler
-
-from imblearn.over_sampling import ADASYN
-
-from imblearn.under_sampling import TomekLinks
-from sklearn.metrics import plot_confusion_matrix
+from imblearn.under_sampling import TomekLinks, NearMiss, RandomUnderSampler, CondensedNearestNeighbour
 
 import warnings
 from sklearn.exceptions import DataConversionWarning
 
-from sklearn.metrics import precision_recall_curve
-from sklearn.metrics import plot_precision_recall_curve
-
-from sklearn.metrics import auc
-from sklearn.metrics import plot_roc_curve
+from sklearn.metrics import auc, plot_precision_recall_curve, plot_confusion_matrix, roc_curve
+from sklearn.metrics import plot_roc_curve, average_precision_score, precision_recall_curve
 
 from sklearn.linear_model import LogisticRegression
 
-# import matplotlib.pyplot as plt
-# from sklearn.pipeline import Pipeline
-
+from imblearn.pipeline import make_pipeline
 from imblearn.pipeline import Pipeline
 from sklearn.svm import SVC
 
-from sklearn.metrics import average_precision_score
+import plotly.graph_objects as go
 
 
 def get_categorical_features(df):
@@ -99,9 +75,6 @@ def model_evaluation(X_train, X_test, y_train, y_test):
     plot_precision_recall_curve(clf, X_test, y_test, pos_label=1)
     plot_roc_curve(clf, X_test, y_test)
     plt.show()
-
-
-
     #     print('Recall: %.2f' % recall_score(y_test, y_pred))
     #     print('Precision: %.2f' % precision_score(y_test, y_pred))
     #     print('F1: %.2f' % f1_score(y_test, y_pred))
@@ -111,7 +84,6 @@ def scatter2D(x, y):
     x['stroke'] = y
     df = x
     fig, ax3 = plt.subplots(figsize=(15, 8))
-
     colors = {0: 'blue', 1: 'red'}
     sizevalues = {0: 5, 1: 20}
     alphavalues = {0: 0.4, 1: 0.8}
@@ -119,8 +91,8 @@ def scatter2D(x, y):
                c=df['stroke'].apply(lambda x: colors[x]),
                s=df['stroke'].apply(lambda x: sizevalues[x]),
                alpha= .5)
-
     plt.show()
+
 
 def scatter3D(x, y, cols):
     print(cols)
@@ -175,7 +147,6 @@ def scatter_plot(x, y):
     x = pd.DataFrame(pca.transform(x))
     print(pca.explained_variance_ratio_)
 
-    # φτιαξε αυτο για να μη χαλαει το x_train πριν την εκπαιδευση του RF
     x['stroke'] = y
     pcaDF = x
     pcaDF.columns = ['pc1', 'pc2', 'pc3', 'stroke']
@@ -196,10 +167,6 @@ def scatter_plot(x, y):
     pny = negative['pc2']
     pnz = negative['pc3']
 
-    # ax3.set_xlim3d(-4, 4)
-    # ax3.set_ylim3d(-4, 4)
-    # ax3.set_zlim3d(-4, 4)
-
     # plotting
     ax3.scatter(pnx, pny, pnz, label='Class 2', c='blue')
     ax3.scatter(ppx, ppy, ppz, label='Class 1', c='red')
@@ -212,7 +179,7 @@ def kNNUndersampling(X_train, X_test, y_train, y_test):
     print('UNDERSAMPLING: ')
     undersample = CondensedNearestNeighbour(n_neighbors=1)
     X_train, y_train = undersample.fit_resample(X_train, y_train)
-    scatter_plot(X_train, y_train)
+    # scatter_plot(X_train, y_train)
     model_evaluation(X_train, X_test, y_train, y_test)
 
 
@@ -235,13 +202,6 @@ def bSMOTE(X_train, y_train, i):
         # scatter_plot(X_train, y_train)
         scatter3D(X_train, y_train, cols)
     return X_train, y_train
-
-
-def adaptiveSynthetic(X_train, X_test, y_train, y_test):
-    ada = ADASYN()
-    X_train, y_train = ada.fit_resample(X_train, y_train)
-    scatter_plot(X_train, y_train)
-    model_evaluation(X_train, X_test, y_train, y_test)
 
 
 def kMeansRos(X_train):
@@ -269,25 +229,27 @@ def kMeansRos(X_train):
 
     return X_train, y_train
 
+def BMI_approximation(df):
+    approxDF = pd.read_csv('BMI_approx.csv')
+    for i in range(len(df)):
+        id = df.iloc[i]['id']
+        bmi = df.iloc[i]['bmi']
+        # print(bmi)
 
-def plotlyBarChart(df):
+        if math.isnan(bmi):
+            print('IN')
+            bmi_app = float(approxDF[approxDF['id']==id]['bmi'])
+            df.at[i, 'bmi'] = bmi_app
 
-    import plotly.graph_objects as go
+    return df
 
-
-    x = df.index.values.tolist()
-    y = df.tolist()
-
-    fig = go.Figure(data=[go.Bar(
-        x=x, y=y,
-        text=y,
-        textposition='auto',
-    )])
-
-    fig.show()
 
 
 if __name__ == '__main__':
+
+    strategies = ['NONE', 'RUS', 'BSMOTE', 'ADASYN']
+    selection = 1
+    dropMissingValues = True
 
     warnings.filterwarnings(action='ignore', category=DataConversionWarning)
 
@@ -304,10 +266,17 @@ if __name__ == '__main__':
     print('positive cases: ', len(neg_df))
 
     # Drop id column & Drop Missing values
-    df = df.drop(['id'], axis=1)
-    print(df.isnull().sum())
-    df = df.dropna()
-    print("After removal of missing values: ", len(df))
+    if dropMissingValues:
+        df = df.drop(['id'], axis=1)
+        print(df.isnull().sum())
+        df = df.dropna()
+        print("After removal of missing values: ", len(df))
+    # missing value approximation with predictive model
+    else:
+        df = BMI_approximation(df)
+        df = df.drop(['id'], axis=1)
+        print(df.isnull().sum())
+
 
     # get categorical features
     categorical_features = get_categorical_features(df)
@@ -323,9 +292,10 @@ if __name__ == '__main__':
     count_cases = df['stroke'].value_counts()
     print(type(count_cases))
     print(count_cases)
-    ax = count_cases.plot.bar(rot=0, title='Number of cases per class')
+    ax = count_cases.plot.bar(rot=0, title='Number of cases per class', color=['blue', 'red'])
     ax.set_xlabel('stroke prediction')
     ax.set_ylabel('# of cases')
+    # ax.legend()
     # for p in ax.patches:
     #     ax.annotate(str(p.get_height()), (p.get_x() * 1.005, p.get_height() * 1.005))
     plt.show()
@@ -352,7 +322,6 @@ if __name__ == '__main__':
     ap = []
 
     mean_fpr = np.linspace(0, 1, 100)
-    # mean_pr = np.linspace(0, 1, 100)
     mean_rec = np.linspace(0, 1, 100)
 
     figROC = plt.figure(2)
@@ -378,17 +347,24 @@ if __name__ == '__main__':
             # scatter_plot(X_train, y_train)
             scatter3D(X_train, y_train, cols)
 
-        # sm = BorderlineSMOTE(sampling_strategy='all')
-        # sm = SMOTE()
-        # X_train, y_train = sm.fit_resample(X_train, y_train)
-        X_train, y_train = kMeansRos(X_train)
-        # from imblearn.over_sampling import KMeansSMOTE
-        # sm = KMeansSMOTE(k_neighbors=2)
-        # X_train, y_train = bSMOTE(X_train, y_train, i)
 
-        # from imblearn.under_sampling import NearMiss, RandomUnderSampler
-        # rus = RandomUnderSampler()
-        # X_train, y_train = rus.fit_resample(X_train, y_train)
+        strategy = strategies[selection]
+
+        if strategy == 'RUS':
+            rus = RandomUnderSampler()
+            X_train, y_train = rus.fit_resample(X_train, y_train)
+        elif strategy == 'BSMOTE':
+            # sm = SMOTE()
+            sm = BorderlineSMOTE()
+            X_train, y_train = sm.fit_resample(X_train, y_train)
+            # remove Tomek-Links
+            tl = TomekLinks(sampling_strategy='auto')
+            X_train, y_train = tl.fit_resample(X_train, y_train)
+        elif strategy == 'ADASYN':
+            ada = ADASYN(random_state=42)
+            X_train, y_train = ada.fit_resample(X_train, y_train)
+
+
 
         if i == 0:
             # scatter_plot(X_train, y_train)
@@ -480,33 +456,6 @@ if __name__ == '__main__':
     print('Mean Balanced Accuracy: %.3f (%.3f)' % (np.mean(bacc), np.std(bacc)))
     print('AUC %.3f (%.3f)' % (np.mean(aucs), np.std(aucs)))
 
-
-    # print('NO PREPROCESSING: ')
-    # scatter_plot(X_train, y_train)
-    # # scatter2D(X, y)
-    # print(y_train['stroke'].value_counts())
-    # model_evaluation(X_train, X_test, y_train, y_test)
-
-    # ros = RandomOverSampler()
-    # X_ros, y_ros = ros.fit_resample(X_train, y_train)
-    # scatter_plot(X_ros, y_ros)
-    # print(y_ros['stroke'].value_counts())
-    # model_evaluation(X_ros, X_test, y_ros, y_test)
-    #
-    # rus = RandomUnderSampler()
-    # X_rus, y_rus = rus.fit_resample(X_train, y_train)
-    # scatter_plot(X_rus, y_rus)
-    # print(y_ros['stroke'].value_counts())
-    # model_evaluation(X_rus, X_test, y_rus, y_test)
-
-    # print('Borderline SMOTE & Tomek Links')
-    # brSMOTE(X_train, X_test, y_train, y_test)
-
-    # print('KMeans & Random Oversampling')
-    # kMeansRos(X_train, X_test, y_train, y_test)
-
-    # plot_confusion_matrix(clf, X_test, y_test, cmap=plt.cm.Blues, normalize='true')
-    # plt.show()
 
 
 
